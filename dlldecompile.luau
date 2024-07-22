@@ -1,7 +1,7 @@
 --!native
 --!optimize 2
 --!divine-intellect
--- https://discord.gg/wx4ThpAsmw
+-- https://discord.gg/dllinjectproject -- COMING SON
 
 local service = setmetatable({}, {
 	__index = function(self, index)
