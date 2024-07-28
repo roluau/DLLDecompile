@@ -1,7 +1,7 @@
 --!native
 --!optimize 2
 --!divine-intellect
--- coming soon discord
+-- .gg/comingsoon
 
 local service = setmetatable({}, {
 	__index = function(self, index)
@@ -1017,6 +1017,26 @@ local GLOBAL_ENV = getgenv and getgenv() or _G or shared
 --- @field IgnoreNotArchivable string -- IgnoreArchivable
 --- @field RemovePlayerCharacters string -- INVERSE SavePlayerCharacters
 
+--[=[
+	@function saveinstance
+	Saves instances with specified options. Example:
+	```lua
+	local Params = {
+		RepoURL = "https://raw.githubusercontent.com/luau/SynSaveInstance/main/",
+		SSI = "saveinstance",
+	}
+
+	local synsaveinstance = loadstring(game:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true), Params.SSI)()
+
+	local CustomOptions = { SafeMode = true, timeout = 15, SaveBytecode = true }
+	
+	synsaveinstance(CustomOptions)
+	```
+	@within SynSaveInstance
+	@yields
+	@param Parameter_1 variant<table, table<Instance>> -- Can either be [SynSaveInstance.CustomOptions table] or a filled with instances ({Instance}), (then it will be treated as ExtraInstances with an invalid mode and IsModel will be true).
+	@param Parameter_2 table -- [OPTIONAL] If present, then Parameter_2 will be assumed to be [SynSaveInstance.CustomOptions table]. And then if the Parameter_1 is an Instance, then it will be assumed to be [SynSaveInstance.CustomOptions table].Object. If Parameter_1 is a table filled with instances ({Instance}), then it will be assumed to be [SynSaveInstance.CustomOptions table].ExtraInstances and IsModel will be true). This exists for sake compatibility with `saveinstance(game, {})`
+]=]
 
 local function synsaveinstance(CustomOptions, CustomOptions2)
 	-- if GLOBAL_ENV.__USSI then
@@ -1039,11 +1059,11 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		--* New:
 		__DEBUG_MODE = false,
 
-		Binary = false, -- true in syn newer versions (false in our case because no binary support yet), Description: Saves everything in Binary Mode (rbxl/rbxm).
+		-- Binary = false, -- true in syn newer versions (false in our case because no binary support yet), Description: Saves everything in Binary Mode (rbxl/rbxm).
 		--Callback = nil, -- Description: If set, the serialized data will be sent to the callback instead of to file.
 		--Clipboard/CopyToClipboard = false, -- Description: If set to true, the serialized data will be set to the clipboard, which can be later pasted into studio easily. Useful for saving models.
-		--MaxThreads = 3 -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
-		DisableCompression = false, --Description: Disables compression in the binary output
+		-- MaxThreads = 3 -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
+		-- DisableCompression = false, --Description: Disables compression in the binary output
 
 		DecompileJobless = false,
 		DecompileIgnore = { -- * Clean these up (merged Old Syn and New Syn)
@@ -2540,7 +2560,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 						RecoveredScripts
 					) .. "\n" or "")
 					.. [[
-		Thank you for using DLLDECOMPILE.
+		Thank you for using UniversalSynSaveInstance.
 
 		If you didn't save in Binary - we recommended to save the game right away to take advantage of the binary format & to preserve values of certain properties if you used IgnoreDefaultProperties setting (as they might change in the future).
 		You can do that by going to FILE -> Save to File As -> Make sure File Name ends with .rbxl -> Save
