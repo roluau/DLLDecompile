@@ -1,7 +1,7 @@
 --!native
 --!optimize 2
 --!divine-intellect
--- https://discord.gg/dllinjectproject -- COMING SON
+-- coming soon discord
 
 local service = setmetatable({}, {
 	__index = function(self, index)
@@ -11,7 +11,7 @@ local service = setmetatable({}, {
 	end,
 })
 
-local function Find(s, pattern)
+local function string_find(s, pattern)
 	return string.find(s, pattern, nil, true)
 end
 
@@ -72,6 +72,7 @@ do
 
 	finder({
 		-- readbinarystring = 'string.find(...,"bin",nil,true)', -- ! Could match some unwanted stuff (getbinaryindex)
+		-- request = 'string.find(...,"request",nil,true) and not string.find(...,"internal",nil,true)',
 		base64encode = 'local a={...}local b=a[1]local function c(a,b)return string.find(a,b,nil,true)end;return c(b,"encode")and(c(b,"base64")or c(string.lower(tostring(a[2])),"base64"))',
 		decompile = '(string.find(...,"decomp",nil,true) and string.sub(...,#...) ~= "s") or string.find(...,"assembl",nil,true)',
 		gethiddenproperty = 'string.find(...,"get",nil,true) and string.find(...,"h",nil,true) and string.find(...,"prop",nil,true) and string.sub(...,#...) ~= "s"',
@@ -80,16 +81,20 @@ do
 		getscriptbytecode = 'string.find(...,"get",nil,true) and string.find(...,"bytecode",nil,true)', --  or string.find(...,"dump",nil,true) and string.find(...,"string",nil,true) due to Fluxus (dumpstring returns a function)
 		hash = 'local a={...}local b=a[1]local function c(a,b)return string.find(a,b,nil,true)end;return c(b,"hash")and c(string.lower(tostring(a[2])),"crypt")',
 		protectgui = 'string.find(...,"protect",nil,true) and string.find(...,"ui",nil,true) and not string.find(...,"un",nil,true)',
-		-- request = 'string.find(...,"request",nil,true) and not string.find(...,"internal",nil,true)',
-		writefile = 'string.find(...,"file",nil,true) and string.find(...,"write",nil,true)',
 		-- appendfile = 'string.find(...,"file",nil,true) and string.find(...,"append",nil,true)',
+		readfile = 'string.find(...,"file",nil,true) and string.find(...,"read",nil,true)',
+		writefile = 'string.find(...,"file",nil,true) and string.find(...,"write",nil,true)',
 	}, true, 10)
 end
 
 local identify_executor = identifyexecutor or getexecutorname or whatexecutor
+
+local EXECUTOR_NAME = identify_executor()
+
 local gethiddenproperty = global_container.gethiddenproperty
-local writefile = global_container.writefile
 -- local appendfile = global_container.appendfile
+local readfile = global_container.readfile
+local writefile = global_container.writefile
 
 local getscriptbytecode = global_container.getscriptbytecode -- * A lot of assumptions are made based on whether this function is defined or not. So in certain edge cases, like if the executor defines "decompile" or "getscripthash" function yet doesn't define this function there might be loss of functionality of the saveinstance. Although that would be very rare and weird
 local base64encode = global_container.base64encode
@@ -179,7 +184,7 @@ if getscriptbytecode then
 		
 	local READER_FLOAT_PRECISION = 7 -- up to 99
 	local SHOW_INSTRUCTION_LINES = false
-	local SHOW_REFERENCES = true
+	local SHOW_REFERENCES = false
 	local SHOW_OPERATION_NAMES = false
 	local SHOW_MISC_OPERATIONS = false
 	local LIST_USED_GLOBALS = true
@@ -210,8 +215,6 @@ if getscriptbytecode then
 		end
 	end
 end
-
-local EXECUTOR_NAME = identify_executor()
 
 local SharedStrings = {}
 local SharedString_identifiers = setmetatable({
@@ -537,7 +540,7 @@ XML_Descriptors = {
 		return "<min>" .. descriptor(min) .. "</min><max>" .. descriptor(max) .. "</max>"
 	end,
 	__PROTECTEDSTRING = function(raw) -- ? its purpose is to "protect" data from being treated as ordinary character data during processing;
-		return Find(raw, "]]>") and string.gsub(raw, ESCAPES_PATTERN, ESCAPES) or XML_Descriptors.__CDATA(raw)
+		return string_find(raw, "]]>") and string.gsub(raw, ESCAPES_PATTERN, ESCAPES) or XML_Descriptors.__CDATA(raw)
 	end,
 	__SEQUENCE = function(raw, valueFormatter) --The value is the text content, formatted as a space-separated list of floating point numbers.
 		-- tostring(raw) also works (but way slower rn)
@@ -659,8 +662,8 @@ XML_Descriptors = {
 	Font = function(raw)
 		local FontString = tostring(raw) -- TODO: Temporary fix
 
-		local EmptyWeight = Find(FontString, "Weight = ,")
-		local EmptyStyle = Find(FontString, "Style =  }")
+		local EmptyWeight = string_find(FontString, "Weight = ,")
+		local EmptyStyle = string_find(FontString, "Style =  }")
 
 		return "<Family>"
 			.. XML_Descriptors.Content(raw.Family)
@@ -808,7 +811,7 @@ The value of each component is represented by the text content formatted as a 32
 	int64 = nil,
 	string = function(raw, skipEmptyCheck)
 		return not skipEmptyCheck and raw == "" and raw
-			or Find(raw, "]]>") and string.gsub(raw, ESCAPES_PATTERN, ESCAPES)
+			or string_find(raw, "]]>") and string.gsub(raw, ESCAPES_PATTERN, ESCAPES)
 			or XML_Descriptors.__CDATA(string.gsub(raw, "\0", ""))
 	end,
 }
@@ -829,9 +832,44 @@ do
 	local ClassPropertyExceptions = { TriangleMeshPart = ArrayToDictionary({ "CollisionFidelity" }) }
 
 	local function FetchAPI()
-		local API_Dump_Url =
-			"https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/Mini-API-Dump.json"
-		local API_Dump = game:HttpGet(API_Dump_Url, true)
+		-- * You can also use: https://setup.rbxcdn.com/{https://setup.rbxcdn.com/versionQTStudio}-Full-API-Dump.json
+		-- * https://setup.rbxcdn.com/versionQTStudio seems to be a bit behind DeployHistory.txt
+		local API_Dump
+		if
+			not pcall(function()
+				local VERSIONS = version()
+
+				local o, r = pcall(readfile, VERSIONS)
+				if o and r and r ~= "" then
+					API_Dump = r
+					return
+				end
+
+				local latest_commit = service.HttpService:JSONDecode(
+					game:HttpGet(
+						"https://api.github.com/search/commits?sort=committer-date&order=desc&q=repo:MaximumADHD/Roblox-Client-Tracker+0."
+							.. string.split(VERSIONS, ".")[2],
+						true
+					)
+				).items[1]
+				-- print(VERSIONS)
+				-- print(latest_commit.commit.message)
+				API_Dump = game:HttpGet(
+					"https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/"
+						.. latest_commit.sha
+						.. "/Mini-API-Dump.json",
+					true
+				)
+
+				writefile(VERSIONS, API_Dump) -- ? To avoid 60 requests / 1 h limit on GitHub Api
+			end)
+		then
+			warn("Failed to get " .. version() .. " API Dump, trying latest..")
+			API_Dump = game:HttpGet(
+				"https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/Mini-API-Dump.json",
+				true
+			)
+		end
 
 		local classList = {}
 
@@ -941,7 +979,7 @@ local GLOBAL_ENV = getgenv and getgenv() or _G or shared
 --- @field timeout number -- If the decompilation run time exceeds this value it gets cancelled. Set to -1 to disable timeout (unreliable). ***Aliases***: `DecompileTimeout`. ___Default:___ 10
 --- @field DecompileJobless boolean -- Includes already decompiled code in the output. No new scripts are decompiled. ___Default:___ false
 --- @field SaveBytecode boolean -- Includes bytecode in the output. Useful if you wish to be able to decompile it yourself later. ___Default:___ false
---- .DecompileIgnore {Instance | Instance.ClassName | [Instance.ClassName] = {Instance.Name}} -- * Ignores match & it's descendants by default. To Ignore only the instance itself set the value to `= false`. Examples: "Chat", - Matches any instance with "Chat" ClassName, Players = {"MyPlayerName"} - Matches "Players" Class AND "MyPlayerName" Name ONLY, `workspace` - matches Instance by reference, `[workspace] = false` - matches Instance by reference and only ignores the instance itself and not it's descendants. ___Default:___ {Chat, TextChatService}
+--- .DecompileIgnore {Instance | Instance.ClassName | [Instance.ClassName] = {Instance.Name}} -- * Ignores match & it's descendants by default. To Ignore only the instance itself set the value to `= false`. Examples: "Chat", - Matches any instance with "Chat" ClassName, Players = {"MyPlayerName"} - Matches "Players" Class AND "MyPlayerName" Name ONLY, `workspace` - matches Instance by reference, `[workspace] = false` - matches Instance by reference and only ignores the instance itself and not it's descendants. ___Default:___ {Chat, TextChatService, ModuleScript = { "PlayerModule" }}
 --- .IgnoreList {Instance | Instance.ClassName | [Instance.ClassName] = {Instance.Name}} -- Structure is similar to **@DecompileIgnore** except `= false` meaning if you ignore one instance it will automatically ignore it's descendants. ___Default:___ {CoreGui, CorePackages}
 --- .ExtraInstances {Instance} -- If used with any invalid mode (like "invalidmode") it will only save these instances. ___Default:___ {}
 --- @field IgnoreProperties table -- Ignores properties by Name. ___Default:___ {}
@@ -979,28 +1017,14 @@ local GLOBAL_ENV = getgenv and getgenv() or _G or shared
 --- @field IgnoreNotArchivable string -- IgnoreArchivable
 --- @field RemovePlayerCharacters string -- INVERSE SavePlayerCharacters
 
---[=[
-	@function saveinstance
-	Saves instances with specified options. Example:
-	```lua
-	local Params = {
-		RepoURL = "https://raw.githubusercontent.com/luau/SynSaveInstance/main/",
-		SSI = "saveinstance",
-	}
-
-	local synsaveinstance = loadstring(game:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true), Params.SSI)()
-
-	local CustomOptions = { SafeMode = true, timeout = 15, SaveBytecode = true }
-	
-	synsaveinstance(CustomOptions)
-	```
-	@within SynSaveInstance
-	@yields
-	@param Parameter_1 variant<table, table<Instance>> -- Can either be [SynSaveInstance.CustomOptions table] or a filled with instances ({Instance}), (then it will be treated as ExtraInstances with an invalid mode and IsModel will be true).
-	@param Parameter_2 table -- [OPTIONAL] If present, then Parameter_2 will be assumed to be [SynSaveInstance.CustomOptions table]. And then if the Parameter_1 is an Instance, then it will be assumed to be [SynSaveInstance.CustomOptions table].Object. If Parameter_1 is a table filled with instances ({Instance}), then it will be assumed to be [SynSaveInstance.CustomOptions table].ExtraInstances and IsModel will be true). This exists for sake compatibility with `saveinstance(game, {})`
-]=]
 
 local function synsaveinstance(CustomOptions, CustomOptions2)
+	-- if GLOBAL_ENV.__USSI then
+	-- 	warn("UniversalSynSaveInstance is already running")
+	-- 	return
+	-- end
+	-- GLOBAL_ENV.__USSI = true
+
 	local totalstr, totalsize = "", 0
 	local savebuffer, savebuffer_size = { '<roblox version="4">' }, 2
 
@@ -1015,16 +1039,17 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		--* New:
 		__DEBUG_MODE = false,
 
-		-- Binary = false, -- true in syn newer versions (false in our case because no binary support yet), Description: Saves everything in Binary Mode (rbxl/rbxm).
-		--Callback = nil, -- Description: If set, the serialized data will be sent to the callback instead of to file.
-		--Clipboard/CopyToClipboard = false, -- Description: If set to true, the serialized data will be set to the clipboard, which can be later pasted into studio easily. Useful for saving models.
-		-- MaxThreads = 3 -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
-		-- DisableCompression = false, --Description: Disables compression in the binary output
+		Binary = false, -- true in syn newer versions (false in our case because no binary support yet), Description: Saves everything in Binary Mode (rbxl/rbxm).
+		Callback = nil, -- Description: If set, the serialized data will be sent to the callback instead of to file.
+		Clipboard/CopyToClipboard = false, -- Description: If set to true, the serialized data will be set to the clipboard, which can be later pasted into studio easily. Useful for saving models.
+		MaxThreads = 3 -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
+		DisableCompression = false, --Description: Disables compression in the binary output
 
 		DecompileJobless = false,
 		DecompileIgnore = { -- * Clean these up (merged Old Syn and New Syn)
 			service.Chat,
 			service.TextChatService,
+			ModuleScript = nil,
 		},
 		SaveBytecode = false,
 
@@ -1435,6 +1460,15 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		end
 	end
 
+	do -- ? Fixes crashes on Mobile Devices
+		local DecompileIgnore = OPTIONS.DecompileIgnore
+		local ModuleScript = DecompileIgnore.ModuleScript
+		if type(DecompileIgnore.ModuleScript) == "table" then
+			table.insert(DecompileIgnore, "PlayerModule")
+		elseif ModuleScript == nil then
+			DecompileIgnore.ModuleScript = { "PlayerModule" }
+		end
+	end
 	local InstancePropertyOverrides = {}
 
 	local DecompileIgnore, IgnoreList, IgnoreProperties, NotCreatableFixes =
@@ -1646,8 +1680,13 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		return Size
 	end
 
-	local function run_with_loading(text, keepStatus, taskFunction, ...)
-		local Loading, previousStatus
+	local function wait_for_render()
+		service.RunService.RenderStepped:Wait()
+	end
+
+	local Loading
+	local function run_with_loading(text, keepStatus, waitForRender, taskFunction, ...)
+		local previousStatus
 
 		if StatusText then
 			if keepStatus then
@@ -1674,12 +1713,16 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 					task.wait(0.25)
 				end
 			end)
+			if waitForRender then
+				wait_for_render()
+			end
 		end
 
 		local result = { taskFunction(...) }
 
 		if Loading then
 			task.cancel(Loading)
+			Loading = nil
 			if previousStatus then
 				StatusText.Text = previousStatus
 			end
@@ -1756,18 +1799,21 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 				local hashed_bytecode
 				if ScriptCache then
 					local s, bytecode = pcall(getscriptbytecode, script) -- 	TODO This is awful because we already do this in Custom Decomp (when we are using it, that is)
-					local Cached
+					local cached
 
 					if s then
 						if not bytecode or bytecode == "" then
 							return "-- The Script is Empty"
 						end
 						hashed_bytecode = sha384(bytecode)
-						Cached = ldeccache[hashed_bytecode]
+						cached = ldeccache[hashed_bytecode]
 					end
 
-					if Cached then
-						return Cached
+					if cached then
+						if __DEBUG_MODE then
+							warn("Found in Cache", script:GetFullName())
+						end
+						return cached
 					elseif DecompileJobless then
 						return "-- Not found in already decompiled ScriptCache"
 					end
@@ -1775,7 +1821,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 					task.wait() -- TODO Maybe remove?
 				end
 
-				local ok, result = run_with_loading("Decompiling " .. script.Name, true, DecompileHandler, script)
+				local ok, result = run_with_loading("Decompiling " .. script.Name, true, nil, DecompileHandler, script)
 
 				if not result then
 					ok, result = false, "Empty Output"
@@ -1791,6 +1837,9 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 				if ScriptCache and hashed_bytecode then -- TODO there might(?) be an edgecase where it manages to decompile (built-in) even though getscriptbytecode failed, and the output won't get cached
 					ldeccache[hashed_bytecode] = output -- ? Should we cache even if it timed out?
+					if __DEBUG_MODE then
+						warn("Cached", script:GetFullName())
+					end
 				end
 
 				return output
@@ -1827,7 +1876,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			return result == nil
 				or result == "can't get value"
 				or type(result) == "string"
-					and (Find(result, "Unable to get property " .. propertyName) or property.Category == "Enum" and Find(
+					and (string_find(result, "Unable to get property " .. propertyName) or property.Category == "Enum" and string_find(
 						result,
 						"Invalid value for enum "
 					))
@@ -1948,7 +1997,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		end
 		-- ? Needed for at least 1fps (status text)
 		-- task.wait()
-		service.RunService.RenderStepped:Wait()
+		wait_for_render()
 	end
 
 	local function save_specific(className, properties)
@@ -1981,21 +2030,21 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			if IgnoreNotArchivable and not instance.Archivable then
 				continue
 			end
+
 			local SkipEntirely = IgnoreList[instance]
 			if SkipEntirely then
 				continue
 			end
 
 			local ClassName = instance.ClassName
-			local Class = ClassList[ClassName]
-			if not Class then
-				continue
-			end
 
 			local InstanceName = instance.Name
-			local OnIgnoredList = IgnoreList[ClassName]
-			if OnIgnoredList and (OnIgnoredList == true or OnIgnoredList[InstanceName]) then
-				continue
+
+			do
+				local OnIgnoredList = IgnoreList[ClassName]
+				if OnIgnoredList and (OnIgnoredList == true or OnIgnoredList[InstanceName]) then
+					continue
+				end
 			end
 
 			if not DecompileIgnoring then
@@ -2003,8 +2052,9 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 				if DecompileIgnoring == nil then
 					local DecompileIgnored = DecompileIgnore[ClassName]
-					DecompileIgnoring = DecompileIgnored
-						and (DecompileIgnored == true or DecompileIgnored[InstanceName])
+					if DecompileIgnored then
+						DecompileIgnoring = DecompileIgnored == true or DecompileIgnored[InstanceName]
+					end
 				end
 
 				if DecompileIgnoring then
@@ -2013,35 +2063,39 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 					DecompileIgnoring = 1 -- Ignore one instance
 				end
 			end
+
 			local InstanceOverride, ClassNameOverride
 
 			do
+				local function replaceClassName(newClassName)
+					if InstanceName ~= ClassName then -- TODO Compare against default instance instead (TouchTransmitter is called TouchInterest by default)
+						InstanceOverride = InstancePropertyOverrides[instance]
+						if not InstanceOverride then
+							InstanceOverride = { Properties = { Name = "[" .. ClassName .. "] " .. InstanceName } }
+							InstancePropertyOverrides[instance] = InstanceOverride
+						end
+					end
+					ClassName = newClassName
+				end
+
 				local Fix = NotCreatableFixes[ClassName]
+
 				if Fix then
 					if SaveNonCreatable then
-						if InstanceName ~= ClassName then
-							InstanceOverride = InstancePropertyOverrides[instance]
-							if not InstanceOverride then
-								InstanceOverride = { Properties = { Name = "[" .. ClassName .. "] " .. InstanceName } }
-								InstancePropertyOverrides[instance] = InstanceOverride
-							end
-						end
-						ClassName = Fix
+						replaceClassName(Fix)
 					else
 						continue -- They won't show up in Studio anyway (Enable IsolatePlayers if you wish to bypass this)
 					end
 				else -- ! Assuming nothing that is a PartOperation or inherits from it is in NotCreatableFixes
 					if TreatUnionsAsParts and instance:IsA("PartOperation") then
-						if InstanceName ~= ClassName then
-							-- TODO Remove duplicate code below and above
-							InstanceOverride = InstancePropertyOverrides[instance]
-							if not InstanceOverride then
-								InstanceOverride = { Properties = { Name = "[" .. ClassName .. "] " .. InstanceName } }
-								InstancePropertyOverrides[instance] = InstanceOverride
-							end
-						end
+						replaceClassName("Part")
 						ClassNameOverride = "BasePart" -- * Mutual Superclass for PartOperation and Part; For properties only
-						ClassName = "Part"
+					elseif not ClassList[ClassName] then -- ? API Dump is outdated then
+						if __DEBUG_MODE then
+							warn("Class not Found", ClassName)
+						end
+
+						ClassNameOverride = "Folder"
 					end
 				end
 			end
@@ -2215,8 +2269,8 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 										local should_decompile = true
 										local LinkedSource
 										local LinkedSource_Url = instance.LinkedSource -- ! Assuming every Class that has ProtectedString Source property also has a LinkedSource property
-										local LinkedSource_notEmpty = LinkedSource_Url ~= ""
-										if LinkedSource_notEmpty then
+										local hasLinkedSource = LinkedSource_Url ~= ""
+										if hasLinkedSource then
 											local Path = instance:GetFullName()
 											if RecoveredScripts then
 												table.insert(RecoveredScripts, Path)
@@ -2231,30 +2285,62 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 											LinkedSource = string.match(LinkedSource_Url, "%w+$") -- TODO: No sure if this pattern matches all possible cases. Example is: 'rbxassetid://0&hash=cd73dd2fe5e5013137231c227da3167e'
 											if LinkedSource then
-												local Cached = ldeccache[LinkedSource]
+												local cached = ldeccache[LinkedSource]
 
-												if Cached then
-													value = Cached
+												if cached then
+													value = cached
 													should_decompile = nil
 												elseif DecompileJobless then
 													value = "-- Not found in already decompiled ScriptCache"
 													should_decompile = nil
 												end
 
-												local Source
+												local function filterResults(str)
+													local o, r =
+														pcall(service.HttpService.JSONDecode, service.HttpService, str)
+													if o and r.errors then
+														return false
+													end
+													return true
+												end
+
+												local asset = (string.find(LinkedSource, "%a") and "hash" or "id")
+													.. "="
+													.. LinkedSource
+
+												local source
 												local ok = pcall(function()
-													Source = game:HttpGet(
-														"https://assetdelivery.roproxy.com/v1/asset/?"
-															.. (string.find(LinkedSource, "%a") and "hash" or "id")
-															.. "="
-															.. LinkedSource
+													source = game:HttpGet(
+														"https://assetdelivery.roproxy.com/v1/asset/?" .. asset
 													)
 												end)
 
 												if ok then
-													ldeccache[LinkedSource] = Source
+													ok = filterResults(source)
+												end
 
-													value = Source
+												if not ok then
+													ok = run_with_loading(
+														"Getting " .. instance.Name .. " LinkedSource",
+														true,
+														nil,
+														pcall,
+														function()
+															source = game:HttpGet(
+																"https://linkedsource.glitch.me/asset/" .. asset
+															)
+														end
+													)
+												end
+
+												if ok then
+													ok = filterResults(source)
+												end
+
+												if ok then
+													ldeccache[LinkedSource] = source
+
+													value = source
 
 													-- should_decompile = nil
 												end
@@ -2268,10 +2354,10 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 										end
 
 										if should_decompile then
-											local IsLocalScript = instance:IsA("LocalScript")
+											local isLocalScript = instance:IsA("LocalScript")
 											if
-												IsLocalScript and instance.RunContext == Enum.RunContext.Server
-												or not IsLocalScript
+												isLocalScript and instance.RunContext == Enum.RunContext.Server
+												or not isLocalScript
 													and instance:IsA("Script")
 													and instance.RunContext ~= Enum.RunContext.Client
 											then
@@ -2288,7 +2374,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 										end
 
 										value = "-- Saved by UniversalSynSaveInstance https://discord.gg/wx4ThpAsmw\n\n"
-											.. (LinkedSource_notEmpty and "-- Original Source: https://assetdelivery.roblox.com/v1/asset/?id=" .. (LinkedSource or LinkedSource_Url) .. "\n\n" or "")
+											.. (hasLinkedSource and "-- Original Source: https://assetdelivery.roblox.com/v1/asset/?id=" .. (LinkedSource or LinkedSource_Url) .. "\n\n" or "")
 											.. value
 									end
 								end
@@ -2454,7 +2540,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 						RecoveredScripts
 					) .. "\n" or "")
 					.. [[
-		Thank you for using UniversalSynSaveInstance.
+		Thank you for using DLLDECOMPILE.
 
 		If you didn't save in Binary - we recommended to save the game right away to take advantage of the binary format & to preserve values of certain properties if you used IgnoreDefaultProperties setting (as they might change in the future).
 		You can do that by going to FILE -> Save to File As -> Make sure File Name ends with .rbxl -> Save
@@ -2480,7 +2566,9 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		If you can't move the Camera, run the scripts in the Studio Command Bar:
 			
 		workspace.CurrentCamera.CameraType = Enum.CameraType.Fixed
-				
+		
+		Or Destroy the Camera.
+
 		This file was generated with the following settings:
 				]]
 					.. service.HttpService:JSONEncode(OPTIONS)
@@ -2519,23 +2607,27 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 				totalstr = string.gsub(string.gsub(totalstr, LocalPlayer.UserId, "1"), LocalPlayer.Name, "Roblox")
 			end
+
+			-- if EXECUTOR_NAME ~= "Celery" then
 			run_with_loading(
 				"Writing " .. get_size_format() .. " to File (Depends on Exec)",
 				nil,
+				true,
 				writefile,
 				placename,
 				totalstr
 			)
+			-- else
+			-- 	local SegmentLength = 4145728 -- Celery has an arbitrary savefile/appendfile size limit of ~4MB for reasons unknown. This is a workaround to save the file in segments.
 
-			-- local SegmentLength = 250 * SaveCacheInterval
-			-- local Length = math.ceil(totalsize / SegmentLength)
-			-- print(Length)
-			-- for i = 1, Length do
-			-- 	local savestr = string.sub(totalstr, (i - 1) * SegmentLength, i * SegmentLength)
-			-- 	print(#savestr)
-			-- 	appendfile(placename, savestr)
-			-- 	print("saved")
-			-- 	task.wait(1)
+			-- 	local Length = math.ceil(totalsize / SegmentLength)
+
+			-- 	for i = 1, Length do
+			-- 		local savestr = string.sub(totalstr, (i - 1) * SegmentLength, i * SegmentLength)
+			-- 		StatusText.Text = "Writing to file... " .. math.round(i / Length * 100) .. "%"
+			-- 		appendfile(placename, savestr)
+			-- 		task.wait(1)
+			-- 	end
 			-- end
 		end
 		table.clear(SharedStrings)
@@ -2658,7 +2750,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		if OPTIONS.SafeMode then
 			service.Players.LocalPlayer:Kick("\nSaving in Progress..\nPlease do NOT leave")
 			service.RunService:Set3dRenderingEnabled(false)
-			service.RunService.RenderStepped:Wait()
+			wait_for_render()
 			task.delay(10, service.GuiService.ClearError, service.GuiService)
 		end
 
@@ -2671,7 +2763,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 				connection:Disconnect()
 			end
 		end
-
+		-- GLOBAL_ENV.__USSI = nil
 		if StatusText then
 			task.spawn(function()
 				elapse_t = os.clock() - elapse_t
@@ -2682,6 +2774,10 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 					StatusText.TextColor3 = Color3.new(0, 1)
 					task.wait(Log10 * 2 + ExtraTime)
 				else
+					if Loading then
+						task.cancel(Loading)
+						Loading = nil
+					end
 					StatusText.Text = "Failed! Check F9 console for more info"
 					StatusText.TextColor3 = Color3.new(1)
 					warn("Error found while saving:")
