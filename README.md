@@ -14,38 +14,31 @@ The `DLLDecompile` script is a Lua script designed for Roblox. It allows you to 
 
 ## Usage
 
-1. **Load the Script**: To start, load the script from the provided URL:
+1. **Load the Script**
    ```lua
-   local dlldecompile = loadstring(game:HttpGet("https://raw.githubusercontent.com/roluau/DLLDecompile/main/dlldecompile.luau", true), "dlldecompile")()
-   ```
-
-2. **Configure Options**: Customize the configuration settings as needed. Example:
-   ```lua
-   local config = {
-       mode = "custom",  -- Set the mode of operation
-       ExtraInstances = {  -- List of instances to include
-           game.workspace,
-           game.ReplicatedStorage,
-           game.Lighting,
-           game.ReplicatedFirst,
-           game.StarterPack,
-           game.Players,
-           game.StarterPlayer,
-           game.StarterGui
-       },
-       Decompile = true,  -- Enable decompiling
-       decomptype = "custom",  -- Type of decompilation
-       noscripts = true,  -- Exclude scripts
-       Anonymous = true,  -- Save anonymously
-       TreatUnionsAsParts = true,  -- Handle unions as parts
-       RemovePlayerCharacters = false,  -- Keep player characters
-       IsolateLocalPlayerCharacter = true  -- Isolate local player character
-   }
-   ```
-
-3. **Execute the Script**: Run the script with the configured options:
-   ```lua
-   dlldecompile(config)
+local dlldecompile = loadstring(game:HttpGet("https://raw.githubusercontent.com/roluau/DLLDecompile/main/dlldecompile.luau", true), "dlldecompile")()
+local config = {
+    mode = "custom",  -- Set the mode of operation
+    ExtraInstances = {  -- List of instances to include
+        game.workspace,
+        game.ReplicatedStorage,
+        game.Lighting,
+        game.ReplicatedFirst,
+        game.StarterPack,
+        game.Players,
+        game.StarterPlayer,
+        game.StarterGui,
+        game.Teams
+    },
+    Decompile = true,  -- Enable decompiling
+    decomptype = "custom",  -- Type of decompilation
+    noscripts = false,  -- Exclude scripts
+    Anonymous = true,  -- Save anonymously
+    TreatUnionsAsParts = true,  -- Handle unions as parts
+    RemovePlayerCharacters = false,  -- Keep player characters
+    IsolateLocalPlayerCharacter = true  -- Isolate local player character
+}
+dlldecompile(config)
    ```
 
 ## Disclaimer
