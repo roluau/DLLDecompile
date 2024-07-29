@@ -1,7 +1,7 @@
 --!native
 --!optimize 2
 --!divine-intellect
--- https://discord.gg/wx4ThpAsmw
+-- coming soon discord
 
 local service = setmetatable({}, {
 	__index = function(self, index)
