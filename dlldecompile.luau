@@ -1,7 +1,7 @@
 --!native
 --!optimize 2
 --!divine-intellect
--- .gg/comingsoon
+-- https://discord.gg/wx4ThpAsmw
 
 local service = setmetatable({}, {
 	__index = function(self, index)
@@ -187,7 +187,7 @@ if getscriptbytecode then
 	local SHOW_REFERENCES = true
 	local SHOW_OPERATION_NAMES = false
 	local SHOW_MISC_OPERATIONS = false
-	local LIST_USED_GLOBALS = true
+	local LIST_USED_GLOBALS = false
 	local RETURN_ELAPSED_TIME = false
 	]]
 			local _ENV = (getgenv or getrenv or getfenv)()
@@ -1028,7 +1028,7 @@ local GLOBAL_ENV = getgenv and getgenv() or _G or shared
 
 	local synsaveinstance = loadstring(game:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true), Params.SSI)()
 
-	local CustomOptions = { SafeMode = true, timeout = 15, SaveBytecode = true }
+	local CustomOptions = { SafeM2222222222222222222222222ode = true, timeout = 15, SaveBytecode = true }
 	
 	synsaveinstance(CustomOptions)
 	```
@@ -1057,12 +1057,12 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		decomptype = "",
 		timeout = 10,
 		--* New:
-		__DEBUG_MODE = false,
+		__DEBUG_MODE = true,
 
 		Binary = false, -- true in syn newer versions (false in our case because no binary support yet), Description: Saves everything in Binary Mode (rbxl/rbxm).
 		--Callback = nil, -- Description: If set, the serialized data will be sent to the callback instead of to file.
 		--Clipboard/CopyToClipboard = false, -- Description: If set to true, the serialized data will be set to the clipboard, which can be later pasted into studio easily. Useful for saving models.
-		-- MaxThreads = 3 -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
+		MaxThreads = 10, -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
 		-- DisableCompression = false, --Description: Disables compression in the binary output
 
 		DecompileJobless = false,
@@ -1772,7 +1772,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 		if OPTIONS.noscripts then
 			ldecompile = function()
-				return "-- Decompiling is disabled"
+				return "-- Decompile Is Disabled"
 			end
 		elseif Decompiler then
 			local function DecompileHandler(script)
@@ -1823,7 +1823,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 					if s then
 						if not bytecode or bytecode == "" then
-							return "-- The Script is Empty"
+							return "-- This Script Is Empty"
 						end
 						hashed_bytecode = sha384(bytecode)
 						cached = ldeccache[hashed_bytecode]
@@ -1852,7 +1852,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 					result = string.gsub(result, "\0", "\\0") -- ? Some decompilers sadly output \0 which prevents files from opening
 					output = result
 				else
-					output = "--[[ Failed to decompile\nReason:\n" .. (result or "") .. "\n]]"
+					output = "--[[ Failed to Decompile\nReason:\n" .. (result or "") .. "\n]]"
 				end
 
 				if ScriptCache and hashed_bytecode then -- TODO there might(?) be an edgecase where it manages to decompile (built-in) even though getscriptbytecode failed, and the output won't get cached
@@ -1866,7 +1866,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			end
 		else
 			ldecompile = function()
-				return "-- Decompiling is NOT supported on your executor"
+				return "-- Decompiling Is NOT Supported on your executor"
 			end
 		end
 	end
@@ -2013,7 +2013,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		savebuffer_size = 1
 
 		if StatusText then
-			StatusText.Text = "Saving.. Size: " .. get_size_format()
+			StatusText.Text = "Saving Game... File Size: " .. get_size_format()
 		end
 		-- ? Needed for at least 1fps (status text)
 		-- task.wait()
@@ -2381,7 +2381,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 													and instance:IsA("Script")
 													and instance.RunContext ~= Enum.RunContext.Client
 											then
-												value = "-- Server Scripts can NOT be decompiled" --TODO: Could be not just server scripts in the future
+												value = "-- Server Scripts can't be decompiled... There is no way to save it." --TODO: Could be not just server scripts in the future
 											else
 												value = ldecompile(instance)
 												if SaveBytecode then
@@ -2393,8 +2393,8 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 											end
 										end
 
-										value = "-- Saved by UniversalSynSaveInstance https://discord.gg/wx4ThpAsmw\n\n"
-											.. (hasLinkedSource and "-- Original Source: https://assetdelivery.roblox.com/v1/asset/?id=" .. (LinkedSource or LinkedSource_Url) .. "\n\n" or "")
+										value = "-- Saved by DLLDecompile https://discord.gg/comingsoon\n\n"
+											.. (hasLinkedSource and "-- Original Source: DLLDecompile")
 											.. value
 									end
 								end
@@ -2560,7 +2560,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 						RecoveredScripts
 					) .. "\n" or "")
 					.. [[
-		Thank you for using UniversalSynSaveInstance.
+		Thank you for using DLLDecompile.
 
 		If you didn't save in Binary - we recommended to save the game right away to take advantage of the binary format & to preserve values of certain properties if you used IgnoreDefaultProperties setting (as they might change in the future).
 		You can do that by going to FILE -> Save to File As -> Make sure File Name ends with .rbxl -> Save
@@ -2569,7 +2569,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 		If the chat system does not work, please use the explorer and delete everything inside the TextChatService/Chat service(s). 
 
-		Or run `game:GetService("Chat"):ClearAllChildren()`
+		Or run `game:GetService("Chat"):ClearAllChildren()` in command bar
 				
 		If Union and MeshPart collisions don't work, run the script below in the Studio Command Bar:
 				
@@ -2630,7 +2630,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 			-- if EXECUTOR_NAME ~= "Celery" then
 			run_with_loading(
-				"Writing " .. get_size_format() .. " to File (Depends on Exec)",
+				"Writing " .. get_size_format() .. " to File (Solara Takes longer time to write...)",
 				nil,
 				true,
 				writefile,
@@ -2723,10 +2723,10 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 		StatusText = Instance.new("TextLabel")
 
-		StatusText.Text = "Saving..."
+		StatusText.Text = "Saving Game..."
 
 		StatusText.BackgroundTransparency = 1
-		StatusText.Font = Enum.Font.Code
+		StatusText.Font = Enum.Font.FredokaOne
 		StatusText.AnchorPoint = Vector2.new(1)
 		StatusText.Position = UDim2.new(1)
 		StatusText.Size = UDim2.new(0.3, 0, 0, 20)
@@ -2768,7 +2768,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 	do
 		if OPTIONS.SafeMode then
-			service.Players.LocalPlayer:Kick("\nSaving in Progress..\nPlease do NOT leave")
+			service.Players.LocalPlayer:Kick("\nSaving in Progress..\nPlease do NOT leave/n DLLDecompile")
 			service.RunService:Set3dRenderingEnabled(false)
 			wait_for_render()
 			task.delay(10, service.GuiService.ClearError, service.GuiService)
@@ -2790,7 +2790,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 				local Log10 = math.log10(elapse_t)
 				local ExtraTime = 10
 				if ok then
-					StatusText.Text = string.format("Saved! Time %.3f seconds; Size %s", elapse_t, get_size_format())
+					StatusText.Text = string.format("Saved Game! Time %.3f seconds; Size %s", elapse_t, get_size_format())
 					StatusText.TextColor3 = Color3.new(0, 1)
 					task.wait(Log10 * 2 + ExtraTime)
 				else
