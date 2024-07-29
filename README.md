@@ -15,7 +15,7 @@ The `DLLDecompile` script is a Lua script designed for Roblox. It allows you to 
 ## Usage
 
 1. **Load the Script**
-   ```lua
+```lua
 local dlldecompile = loadstring(game:HttpGet("https://raw.githubusercontent.com/roluau/DLLDecompile/main/dlldecompile.luau", true), "dlldecompile")()
 local config = {
     mode = "custom",  -- Set the mode of operation
@@ -39,7 +39,7 @@ local config = {
     IsolateLocalPlayerCharacter = true  -- Isolate local player character
 }
 dlldecompile(config)
-   ```
+```
 
 ## Disclaimer
 
