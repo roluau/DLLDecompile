@@ -1,7 +1,7 @@
 --!native
 --!optimize 2
 --!divine-intellect
--- coming soon discord
+-- COPYRIGHT (c) 2024 - DLLDECOMPILE BY ROLUAU
 
 local service = setmetatable({}, {
 	__index = function(self, index)
@@ -84,6 +84,7 @@ do
 		-- appendfile = 'string.find(...,"file",nil,true) and string.find(...,"append",nil,true)',
 		readfile = 'string.find(...,"file",nil,true) and string.find(...,"read",nil,true)',
 		writefile = 'string.find(...,"file",nil,true) and string.find(...,"write",nil,true)',
+		setthreadidentity = 'string.find(...,"identity",nil,true) and string.find(...,"set",nil,true)',
 	}, true, 10)
 end
 
@@ -165,7 +166,7 @@ end
 local custom_decompiler, load_decompiler -- TODO Temporary
 
 if getscriptbytecode then
-	-- Credits @w-a-e
+	-- Credits @roluau
 	local decompiler_source
 
 	if
@@ -187,7 +188,7 @@ if getscriptbytecode then
 	local SHOW_REFERENCES = true
 	local SHOW_OPERATION_NAMES = false
 	local SHOW_MISC_OPERATIONS = false
-	local LIST_USED_GLOBALS = false
+	local LIST_USED_GLOBALS = true
 	local RETURN_ELAPSED_TIME = false
 	]]
 			local _ENV = (getgenv or getrenv or getfenv)()
@@ -1017,33 +1018,19 @@ local GLOBAL_ENV = getgenv and getgenv() or _G or shared
 --- @field IgnoreNotArchivable string -- IgnoreArchivable
 --- @field RemovePlayerCharacters string -- INVERSE SavePlayerCharacters
 
---[=[
-	@function saveinstance
-	Saves instances with specified options. Example:
-	```lua
-	local Params = {
-		RepoURL = "https://raw.githubusercontent.com/luau/SynSaveInstance/main/",
-		SSI = "saveinstance",
-	}
-
-	local synsaveinstance = loadstring(game:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true), Params.SSI)()
-
-	local CustomOptions = { SafeM2222222222222222222222222ode = true, timeout = 15, SaveBytecode = true }
-	
-	synsaveinstance(CustomOptions)
-	```
-	@within SynSaveInstance
-	@yields
-	@param Parameter_1 variant<table, table<Instance>> -- Can either be [SynSaveInstance.CustomOptions table] or a filled with instances ({Instance}), (then it will be treated as ExtraInstances with an invalid mode and IsModel will be true).
-	@param Parameter_2 table -- [OPTIONAL] If present, then Parameter_2 will be assumed to be [SynSaveInstance.CustomOptions table]. And then if the Parameter_1 is an Instance, then it will be assumed to be [SynSaveInstance.CustomOptions table].Object. If Parameter_1 is a table filled with instances ({Instance}), then it will be assumed to be [SynSaveInstance.CustomOptions table].ExtraInstances and IsModel will be true). This exists for sake compatibility with `saveinstance(game, {})`
-]=]
-
 local function synsaveinstance(CustomOptions, CustomOptions2)
 	-- if GLOBAL_ENV.__USSI then
 	-- 	warn("UniversalSynSaveInstance is already running")
 	-- 	return
 	-- end
 	-- GLOBAL_ENV.__USSI = true
+
+	do
+		local setthreadidentity = global_container.setthreadidentity
+		if setthreadidentity then
+			pcall(setthreadidentity, 8) -- ? Arceus X Fix
+		end
+	end
 
 	local totalstr, totalsize = "", 0
 	local savebuffer, savebuffer_size = { '<roblox version="4">' }, 2
@@ -1054,15 +1041,15 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		mode = "optimized",
 		noscripts = false,
 		scriptcache = true,
-		decomptype = "",
+		decomptype = "custom",
 		timeout = 10,
 		--* New:
-		__DEBUG_MODE = true,
+		__DEBUG_MODE = false,
 
-		Binary = false, -- true in syn newer versions (false in our case because no binary support yet), Description: Saves everything in Binary Mode (rbxl/rbxm).
+		-- Binary = false, -- true in syn newer versions (false in our case because no binary support yet), Description: Saves everything in Binary Mode (rbxl/rbxm).
 		--Callback = nil, -- Description: If set, the serialized data will be sent to the callback instead of to file.
 		--Clipboard/CopyToClipboard = false, -- Description: If set to true, the serialized data will be set to the clipboard, which can be later pasted into studio easily. Useful for saving models.
-		MaxThreads = 10, -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
+		-- MaxThreads = 3 -- Description: The number of decompilation threads that can run at once. More threads means it can decompile for scripts at a time.
 		-- DisableCompression = false, --Description: Disables compression in the binary output
 
 		DecompileJobless = false,
@@ -1751,6 +1738,40 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		return unpack(result)
 	end
 
+	local function construct_TimeoutHandler(timeout, f, timeout_ret)
+		return function(script) -- TODO Ideally use ... (vararg) instead of `script` in case this is reused for something other than `decompile` & `getscriptbytecode`
+			if timeout < 0 then
+				return pcall(f, script)
+			end
+
+			local thread = coroutine.running()
+			local timeoutThread, isCancelled
+
+			timeoutThread = task.delay(timeout, function()
+				isCancelled = true -- TODO task.cancel
+				coroutine.resume(thread, nil, timeout_ret)
+			end)
+
+			task.spawn(function()
+				local ok, result = pcall(f, script)
+
+				if isCancelled then
+					return
+				end
+
+				task.cancel(timeoutThread)
+
+				while coroutine.status(thread) ~= "suspended" do
+					task.wait()
+				end
+
+				coroutine.resume(thread, ok, result)
+			end)
+
+			return coroutine.yield()
+		end
+	end
+
 	do
 		if load_decompiler then
 			load_decompiler(Timeout)
@@ -1772,58 +1793,22 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 		if OPTIONS.noscripts then
 			ldecompile = function()
-				return "-- Decompile Is Disabled"
+				return "-- Decompiling is disabled, turn it on and try again."
 			end
 		elseif Decompiler then
-			local function DecompileHandler(script)
-				if Timeout == -1 then
-					return pcall(Decompiler, script)
-				end
-
-				local thread = coroutine.running()
-				local timeoutThread, isCancelled
-
-				task.spawn(function()
-					local ok, result = pcall(Decompiler, script)
-
-					if isCancelled then
-						return
-					end
-
-					if timeoutThread then
-						task.cancel(timeoutThread)
-					else -- * If Decompiler doesn't yield
-						task.defer(function()
-							task.cancel(timeoutThread)
-						end)
-					end
-
-					while coroutine.status(thread) ~= "suspended" do
-						task.wait()
-					end
-
-					coroutine.resume(thread, ok, result)
-				end)
-
-				timeoutThread = task.delay(Timeout, function()
-					isCancelled = true -- TODO task.cancel
-
-					coroutine.resume(thread, nil, "Decompiler timed out")
-				end)
-
-				return coroutine.yield()
-			end
+			local decomp = construct_TimeoutHandler(Timeout, Decompiler, "Decompiler timed out")
+			local getbytecode = construct_TimeoutHandler(3, getscriptbytecode) -- ? Solara fix
 
 			ldecompile = function(script)
 				-- local name = scr.ClassName .. scr.Name
 				local hashed_bytecode
 				if ScriptCache then
-					local s, bytecode = pcall(getscriptbytecode, script) -- 	TODO This is awful because we already do this in Custom Decomp (when we are using it, that is)
+					local s, bytecode = getbytecode(script) -- 	TODO This is awful because we already do this in Custom Decomp (when we are using it, that is)
 					local cached
 
 					if s then
 						if not bytecode or bytecode == "" then
-							return "-- This Script Is Empty"
+							return "-- The Script is Empty, yeah it's empty"
 						end
 						hashed_bytecode = sha384(bytecode)
 						cached = ldeccache[hashed_bytecode]
@@ -1840,9 +1825,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 				else
 					task.wait() -- TODO Maybe remove?
 				end
-
-				local ok, result = run_with_loading("Decompiling " .. script.Name, true, nil, DecompileHandler, script)
-
+				local ok, result = run_with_loading("Decompiling " .. script.Name, true, nil, decomp, script)
 				if not result then
 					ok, result = false, "Empty Output"
 				end
@@ -1852,7 +1835,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 					result = string.gsub(result, "\0", "\\0") -- ? Some decompilers sadly output \0 which prevents files from opening
 					output = result
 				else
-					output = "--[[ Failed to Decompile\nReason:\n" .. (result or "") .. "\n]]"
+					output = "--[[ Failed to decompile\nReason:\n" .. (result or "") .. "\n]]"
 				end
 
 				if ScriptCache and hashed_bytecode then -- TODO there might(?) be an edgecase where it manages to decompile (built-in) even though getscriptbytecode failed, and the output won't get cached
@@ -1866,7 +1849,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			end
 		else
 			ldecompile = function()
-				return "-- Decompiling Is NOT Supported on your executor"
+				return "-- Decompiling is NOT supported on your executor, try turning decomtype to 'custom'"
 			end
 		end
 	end
@@ -2013,7 +1996,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 		savebuffer_size = 1
 
 		if StatusText then
-			StatusText.Text = "Saving Game... File Size: " .. get_size_format()
+			StatusText.Text = "Saving Game.. File Size: " .. get_size_format()
 		end
 		-- ? Needed for at least 1fps (status text)
 		-- task.wait()
@@ -2021,7 +2004,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 	end
 
 	local function save_specific(className, properties)
-		local Ref = Instance.new(className)
+		local Ref = Instance.new(className) -- ! Assuming anything passed here is Creatable
 		local Item = ReturnItem(Ref.ClassName, Ref)
 
 		for propertyName, val in properties do
@@ -2058,6 +2041,10 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 			local ClassName = instance.ClassName
 
+			if ClassName == "" then -- * FilteredSelection
+				ClassName = "Folder"
+			end
+
 			local InstanceName = instance.Name
 
 			do
@@ -2084,7 +2071,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 				end
 			end
 
-			local InstanceOverride, ClassNameOverride
+			local InstanceOverride, ClassNameOverride, ClassTagOverride
 
 			do
 				local function replaceClassName(newClassName)
@@ -2115,7 +2102,8 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 							warn("Class not Found", ClassName)
 						end
 
-						ClassNameOverride = "Folder"
+						ClassTagOverride = ClassName -- ? To at least retain .ClassName unlike the rest of the class-specific properties
+						ClassName = "Folder" -- ? replaceClassName is not needed because of the ClassTagOverride
 					end
 				end
 			end
@@ -2133,7 +2121,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 				savebuffer_size += 1
 			else
 				-- local Properties =
-				savebuffer[savebuffer_size] = ReturnItem(ClassName, instance) -- TODO: Ideally this shouldn't return <Properties> as well as the line below to close it IF  IgnorePropertiesOfNotScriptsOnScriptsMode is ENABLED
+				savebuffer[savebuffer_size] = ReturnItem(ClassTagOverride or ClassName, instance) -- TODO: Ideally this shouldn't return <Properties> as well as the line below to close it IF  IgnorePropertiesOfNotScriptsOnScriptsMode is ENABLED
 				savebuffer_size += 1
 				if not (IgnorePropertiesOfNotScriptsOnScriptsMode and not isLuaSourceContainer(instance)) then
 					local default_instance, new_def_inst
@@ -2367,8 +2355,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 											else --if __DEBUG_MODE then -- * We print this anyway because very important
 												warn(
 													"FAILED TO EXTRACT ORIGINAL SCRIPT SOURCE (OPEN A GITHUB ISSUE): ",
-													instance:GetFullName(),
-													LinkedSource_Url
+													instance:GetFullName()												
 												)
 											end
 										end
@@ -2381,7 +2368,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 													and instance:IsA("Script")
 													and instance.RunContext ~= Enum.RunContext.Client
 											then
-												value = "-- Server Scripts can't be decompiled... There is no way to save it." --TODO: Could be not just server scripts in the future
+												value = "-- Server Scripts can NOT be saved, and will never be possible" --TODO: Could be not just server scripts in the future
 											else
 												value = ldecompile(instance)
 												if SaveBytecode then
@@ -2393,9 +2380,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 											end
 										end
 
-										value = "-- Saved by DLLDecompile https://discord.gg/comingsoon\n\n"
-											.. (hasLinkedSource and "-- Original Source: DLLDecompile")
-											.. value
+										value = "-- Saved by DLLDecompile - Roluau's project"
 									end
 								end
 								value = XML_Descriptors.__PROTECTEDSTRING(value)
@@ -2560,15 +2545,15 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 						RecoveredScripts
 					) .. "\n" or "")
 					.. [[
-		Thank you for using DLLDecompile.
+		Thank you for using DLLDecompile by roluau.
 
 		If you didn't save in Binary - we recommended to save the game right away to take advantage of the binary format & to preserve values of certain properties if you used IgnoreDefaultProperties setting (as they might change in the future).
 		You can do that by going to FILE -> Save to File As -> Make sure File Name ends with .rbxl -> Save
 
-		If your player cannot spawn into the game, please move the scripts in StarterPlayer elsewhere & Set CharacterAutoLoads to true on Players service.
+		If your player cannot spawn into the game, please move the scripts in StarterPlayer somewhere else. Then run `game:GetService("Players").CharacterAutoLoads = true`.
+		And use "Play Here" to start game instead of "Play" to spawn your Character where your Camera currently is.
 
 		If the chat system does not work, please use the explorer and delete everything inside the TextChatService/Chat service(s). 
-
 		Or run `game:GetService("Chat"):ClearAllChildren()` in command bar
 				
 		If Union and MeshPart collisions don't work, run the script below in the Studio Command Bar:
@@ -2583,7 +2568,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			end
 		end
 				
-		If you can't move the Camera, run the scripts in the Studio Command Bar:
+		If you can't move the Camera, run this script in the Studio Command Bar:
 			
 		workspace.CurrentCamera.CameraType = Enum.CameraType.Fixed
 		
@@ -2630,7 +2615,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 			-- if EXECUTOR_NAME ~= "Celery" then
 			run_with_loading(
-				"Writing " .. get_size_format() .. " to File (Solara Takes longer time to write...)",
+				"Writing " .. get_size_format() .. " to File (Solara Slower In Writing)",
 				nil,
 				true,
 				writefile,
@@ -2723,7 +2708,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 		StatusText = Instance.new("TextLabel")
 
-		StatusText.Text = "Saving Game..."
+		StatusText.Text = "Saving..."
 
 		StatusText.BackgroundTransparency = 1
 		StatusText.Font = Enum.Font.FredokaOne
@@ -2768,7 +2753,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 
 	do
 		if OPTIONS.SafeMode then
-			service.Players.LocalPlayer:Kick("\nSaving in Progress..\nPlease do NOT leave/n DLLDecompile")
+			service.Players.LocalPlayer:Kick("\nSaving in Progress..\nPlease do NOT leave\nDLLDecompile - by roluau")
 			service.RunService:Set3dRenderingEnabled(false)
 			wait_for_render()
 			task.delay(10, service.GuiService.ClearError, service.GuiService)
@@ -2790,7 +2775,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 				local Log10 = math.log10(elapse_t)
 				local ExtraTime = 10
 				if ok then
-					StatusText.Text = string.format("Saved Game! Time %.3f seconds; Size %s", elapse_t, get_size_format())
+					StatusText.Text = string.format("Saved Game File! Time: %.3f seconds; Size: %s", elapse_t, get_size_format())
 					StatusText.TextColor3 = Color3.new(0, 1)
 					task.wait(Log10 * 2 + ExtraTime)
 				else
@@ -2798,7 +2783,7 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 						task.cancel(Loading)
 						Loading = nil
 					end
-					StatusText.Text = "Failed! Check F9 console for more info"
+					StatusText.Text = "Errors Found! Check F9 console for more info"
 					StatusText.TextColor3 = Color3.new(1)
 					warn("Error found while saving:")
 					warn(err)
