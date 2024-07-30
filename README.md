@@ -39,7 +39,7 @@ local config = {
     Anonymous = true,  -- Cleans the file of any info related to your account like: Name, UserId. This is useful for some games that might store that info in GUIs or other Instances.
     TreatUnionsAsParts = true,  -- RISKY: Converts all UnionOperations to Parts. Useful if your Executor isn't able to save (read) Unions, because otherwise they will be invisible. Default: true
     RemovePlayerCharacters = false,  -- Ignore player characters while saving. (Enables SaveNonCreatable automatically). Default: false
-    IsolateLocalPlayerCharacter = true  -- Save Player's Character
+    IsolateLocalPlayerCharacter = true,  -- Save Player's Character
     IgnoreSpecialProperties = true -- Ignores hidden/secret properties that are only accessible through gethiddenproperty. If your file is corrupted after saving, you can try turning this on. Default: true
 }
 dlldecompile(config)
